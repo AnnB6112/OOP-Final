@@ -1,15 +1,32 @@
 package com.motorph.service;
 
+import com.motorph.data.DataStore;
 import com.motorph.model.Employee;
 import com.motorph.model.Payslip;
 import com.motorph.model.TimeLog;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class PayrollService implements IPayrollService {
+    private DataStore dataStore;
 
     public PayrollService() {
+        this.dataStore = DataStore.getInstance();
+    }
+
+    public List<Payslip> generateMonthlyReport(int month, int year) {
+        List<Employee> employees = dataStore.getEmployees();
+        List<TimeLog> allLogs = dataStore.getTimeLogs();
+        List<Payslip> report = new ArrayList<>();
+
+        for (Employee emp : employees) {
+            Payslip payslip = generatePayslip(emp, month, year, allLogs);
+            report.add(payslip);
+        }
+        return report;
     }
 
     @Override
@@ -25,6 +42,8 @@ public class PayrollService implements IPayrollService {
         }
         return totalHours;
     }
+    
+    // ... existing methods ...
 
     @Override
     public double calculateBasicPay(double hourlyRate, double hoursWorked) {
@@ -38,16 +57,19 @@ public class PayrollService implements IPayrollService {
 
     @Override
     public double calculateSSSDeduction(double monthlyBasicSalary) {
+        // Simplified SSS logic
         return monthlyBasicSalary * 0.045;
     }
 
     @Override
     public double calculatePhilHealthDeduction(double monthlyBasicSalary) {
+        // Simplified PhilHealth logic
         return monthlyBasicSalary * 0.04; 
     }
 
     @Override
     public double calculatePagIbigDeduction(double monthlyBasicSalary) {
+        // Simplified Pag-IBIG logic
         return 100.0;
     }
 
@@ -71,19 +93,25 @@ public class PayrollService implements IPayrollService {
     @Override
     public Payslip generatePayslip(Employee employee, int month, int year, List<TimeLog> allLogs) {
         // Filter logs for this specific employee
-        java.util.List<TimeLog> employeeLogs = new java.util.ArrayList<>();
-        for (TimeLog log : allLogs) {
-            if (log.getEmployeeId().equals(employee.getEmployeeId())) {
-                employeeLogs.add(log);
-            }
-        }
+        List<TimeLog> employeeLogs = allLogs.stream()
+            .filter(log -> log.getEmployeeId().equals(employee.getEmployeeId()))
+            .collect(Collectors.toList());
 
         double hoursWorked = calculateHoursWorked(employeeLogs, month, year);
         
+        // For this demo, let's assume strict hourly calculation
+        // Or if they are salaried, basic pay is fixed?
+        // The requirement implies functional requirements, usually basic pay is derived from hours worked for hourly employees
+        // or fixed for monthly. Let's stick to the interface.
+        
         double basicPay = calculateBasicPay(employee.getHourlyRate(), hoursWorked);
+        // If basic pay is 0 (no hours), maybe fallback to semi-monthly rate? 
+        // Let's assume hourly for now as per "Time Logs".
+        
         double allowances = calculateAllowances(employee);
         double grossSalary = basicPay + allowances;
 
+        // Deductions usually based on basic salary bracket, not hours worked
         double calculationBase = employee.getBasicSalary(); 
         
         double sss = calculateSSSDeduction(calculationBase);

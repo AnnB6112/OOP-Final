@@ -134,6 +134,9 @@ public class CsvUtil {
                         case "Finance":
                             user = new FinanceUser(username, password);
                             break;
+                        case "IT":
+                            user = new ITUser(username, password);
+                            break;
                         case "Employee":
                         default:
                             user = new RegularUser(username, password);
@@ -283,3 +286,4 @@ public class CsvUtil {
             e.printStackTrace();
         }
     }
+}

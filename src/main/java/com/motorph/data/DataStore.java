@@ -5,6 +5,7 @@ import com.motorph.model.Employee;
 import com.motorph.model.InventoryItem;
 import com.motorph.model.TimeLog;
 import com.motorph.model.LeaveRequest;
+import com.motorph.model.User;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -15,12 +16,14 @@ public class DataStore {
     private List<InventoryItem> inventory;
     private List<TimeLog> timeLogs;
     private List<LeaveRequest> leaveRequests;
+    private List<User> users;
 
     private DataStore() {
         employees = new ArrayList<>();
         inventory = new ArrayList<>();
         timeLogs = new ArrayList<>();
         leaveRequests = new ArrayList<>();
+        users = new ArrayList<>();
         initializeData();
     }
 
@@ -35,6 +38,7 @@ public class DataStore {
         employees = CsvUtil.loadEmployees();
         timeLogs = CsvUtil.loadTimeLogs();
         leaveRequests = CsvUtil.loadLeaveRequests();
+        users = CsvUtil.loadUsers();
         
         // If CSV is empty, load dummy data and save it
         if (employees.isEmpty()) {
@@ -132,5 +136,14 @@ public class DataStore {
             }
         }
         CsvUtil.saveAllLeaveRequests(leaveRequests);
+    }
+
+    public List<User> getUsers() {
+        return users;
+    }
+
+    public void addUser(User user) {
+        users.add(user);
+        CsvUtil.saveUser(user);
     }
 }

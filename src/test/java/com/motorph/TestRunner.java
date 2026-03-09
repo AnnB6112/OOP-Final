@@ -2,7 +2,7 @@ package com.motorph;
 
 import com.motorph.model.Employee;
 import com.motorph.model.InventoryItem;
-import com.motorph.model.PayrollSystem;
+import com.motorph.service.PayrollService;
 import com.motorph.model.Payslip;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -14,7 +14,7 @@ public class TestRunner {
             writer.println("Running Tests...");
 
             // Test Employee Creation
-            Employee emp = new Employee("E001", "John", "Doe", "Developer", 50000, 300);
+            Employee emp = new Employee("E001", "John", "Doe", "Developer", 50000, 300, "S1", "P1", "T1", "PI1");
             if (emp.getEmployeeId().equals("E001")) {
                 writer.println("Employee Test Passed");
             } else {
@@ -22,12 +22,12 @@ public class TestRunner {
             }
 
             // Test Payroll Calculation
-            PayrollSystem payroll = new PayrollSystem();
+            PayrollService payroll = new PayrollService();
             double hoursWorked = 160;
             Payslip payslip = payroll.generatePayslip(emp, hoursWorked);
             
             writer.println("Gross Salary: " + payslip.getGrossSalary());
-            writer.println("Deductions: " + payslip.getDeductions());
+            writer.println("Deductions: " + payslip.getTotalDeductions());
             writer.println("Net Salary: " + payslip.getNetSalary());
             
             if (Math.abs(payslip.getGrossSalary() - 48000) < 0.01) {

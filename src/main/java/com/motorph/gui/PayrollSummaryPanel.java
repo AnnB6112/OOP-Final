@@ -1,19 +1,16 @@
 package com.motorph.gui;
 
-import com.motorph.data.DataStore;
-import com.motorph.model.Employee;
-import com.motorph.service.PayrollService;
 import com.motorph.model.Payslip;
-import com.motorph.model.TimeLog;
+import com.motorph.service.PayrollService;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.text.NumberFormat;
 import java.time.Month;
 import java.time.Year;
 import java.util.List;
-import java.text.NumberFormat;
 import java.util.Locale;
 
 public class PayrollSummaryPanel extends JPanel {
@@ -22,11 +19,9 @@ public class PayrollSummaryPanel extends JPanel {
     private JTable reportTable;
     private DefaultTableModel tableModel;
     private PayrollService payrollService;
-    private DataStore dataStore;
 
     public PayrollSummaryPanel() {
         this.payrollService = new PayrollService();
-        this.dataStore = DataStore.getInstance();
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
@@ -89,7 +84,7 @@ public class PayrollSummaryPanel extends JPanel {
         }
 
         // Currency Renderer
-        NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "PH"));
+        NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.US);
         DefaultTableCellRenderer currencyRenderer = new DefaultTableCellRenderer() {
             @Override
             public void setValue(Object value) {
@@ -112,26 +107,20 @@ public class PayrollSummaryPanel extends JPanel {
     }
 
     private void generateReport() {
-        tableModel.setRowCount(0); // Clear table
-        
+        tableModel.setRowCount(0);
+
         int selectedMonth = monthComboBox.getSelectedIndex() + 1;
         int selectedYear = (Integer) yearComboBox.getSelectedItem();
-        
-        List<Employee> employees = dataStore.getEmployees();
-        List<TimeLog> timeLogs = dataStore.getTimeLogs();
-        
-        double totalGross = 0;
-        double totalNet = 0;
 
-        for (Employee emp : employees) {
-            Payslip payslip = payrollService.generatePayslip(emp, selectedMonth, selectedYear, timeLogs);
-            
-            // Only show employees with hours worked or skip? 
-            // Usually payroll summary shows all active employees, even if 0 pay, but let's show all.
-            
+        List<Payslip> payslips = payrollService.generateMonthlyReport(selectedMonth, selectedYear);
+        
+        double totalBasic = 0, totalAllowances = 0, totalGross = 0;
+        double totalSss = 0, totalPhilHealth = 0, totalPagIbig = 0, totalTax = 0, totalNet = 0;
+
+        for (Payslip payslip : payslips) {
             Object[] rowData = {
-                emp.getEmployeeId(),
-                emp.getLastName() + ", " + emp.getFirstName(),
+                payslip.getEmployee().getEmployeeId(),
+                payslip.getEmployee().getLastName() + ", " + payslip.getEmployee().getFirstName(),
                 payslip.getBasicPay(),
                 payslip.getAllowances(),
                 payslip.getGrossSalary(),
@@ -143,19 +132,28 @@ public class PayrollSummaryPanel extends JPanel {
             };
             
             tableModel.addRow(rowData);
-            
+
+            totalBasic += payslip.getBasicPay();
+            totalAllowances += payslip.getAllowances();
             totalGross += payslip.getGrossSalary();
+            totalSss += payslip.getSssDeduction();
+            totalPhilHealth += payslip.getPhilHealthDeduction();
+            totalPagIbig += payslip.getPagIbigDeduction();
+            totalTax += payslip.getWithholdingTax();
             totalNet += payslip.getNetSalary();
         }
-        
-        // Optional: Add Total Row
+
         Object[] totalRow = {
             "TOTAL", "", 
-            null, null, 
+            totalBasic, 
+            totalAllowances, 
             totalGross, 
-            null, null, null, null, 
+            totalSss, 
+            totalPhilHealth, 
+            totalPagIbig, 
+            totalTax, 
             totalNet
         };
-        // tableModel.addRow(totalRow); // Can add if needed
+        tableModel.addRow(totalRow);
     }
 }

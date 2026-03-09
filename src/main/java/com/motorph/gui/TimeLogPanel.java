@@ -1,18 +1,19 @@
 package com.motorph.gui;
 
-import com.motorph.data.DataStore;
 import com.motorph.model.TimeLog;
 import com.motorph.model.User;
+import com.motorph.service.TimeLogService;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 public class TimeLogPanel extends JPanel {
     private JTable timeLogTable;
     private DefaultTableModel tableModel;
-    private DataStore dataStore;
+    private TimeLogService timeLogService;
     private User currentUser;
 
     private JButton timeInButton;
@@ -21,44 +22,72 @@ public class TimeLogPanel extends JPanel {
 
     public TimeLogPanel(User user) {
         this.currentUser = user;
-        this.dataStore = DataStore.getInstance();
+        this.timeLogService = new TimeLogService();
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         // Top Panel: Title and Controls
         JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setBackground(Color.WHITE);
+        topPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
         // Title
-        JLabel titleLabel = new JLabel("Employee Time Logs");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        JLabel titleLabel = new JLabel("Time Logs");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
         topPanel.add(titleLabel, BorderLayout.NORTH);
 
-        // Controls (Time In / Time Out) - Only for Employees
-        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        // Sub-header controls (Filters)
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        filterPanel.setBackground(Color.WHITE);
+        
+        JButton importBtn = new JButton("Import Time Logs");
+        importBtn.setBackground(new Color(240, 240, 240));
+        
+        JTextField searchField = new JTextField(15);
+        searchField.setText("Search...");
+        
+        JTextField searchEmpField = new JTextField(10);
+        searchEmpField.setText("Search Emp #");
+        
+        filterPanel.add(importBtn);
+        filterPanel.add(searchField);
+        filterPanel.add(searchEmpField);
+        
+        topPanel.add(filterPanel, BorderLayout.CENTER);
+
+        // Controls (Time In / Time Out) - Only for Employees (Keeping existing logic but styling)
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        controlPanel.setBackground(Color.WHITE);
+        
         timeInButton = new JButton("Time In");
+        timeInButton.setBackground(new Color(46, 204, 113));
+        timeInButton.setForeground(Color.WHITE);
+        
         timeOutButton = new JButton("Time Out");
+        timeOutButton.setBackground(new Color(231, 76, 60));
+        timeOutButton.setForeground(Color.WHITE);
+        
         statusLabel = new JLabel("");
         statusLabel.setFont(new Font("Arial", Font.ITALIC, 12));
-        statusLabel.setForeground(Color.BLUE);
+        statusLabel.setForeground(Color.GRAY);
 
         timeInButton.addActionListener(e -> performTimeIn());
         timeOutButton.addActionListener(e -> performTimeOut());
 
+        controlPanel.add(statusLabel);
         controlPanel.add(timeInButton);
         controlPanel.add(timeOutButton);
-        controlPanel.add(statusLabel);
 
         // Only show controls if user is linked to an employee record (not generic admin)
         if (dataStore.findEmployeeById(currentUser.getUsername()).isPresent()) {
-            topPanel.add(controlPanel, BorderLayout.CENTER);
+            topPanel.add(controlPanel, BorderLayout.EAST);
             updateButtonState();
         }
 
         add(topPanel, BorderLayout.NORTH);
 
         // Table
-        String[] columns = {"Employee ID", "Last Name", "First Name", "Date", "Time In", "Time Out"};
+        String[] columns = {"Emp #", "Name", "Date", "Time In", "Time Out", "Paid Time", "Status", "Notes"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -66,80 +95,86 @@ public class TimeLogPanel extends JPanel {
             }
         };
         timeLogTable = new JTable(tableModel);
+        timeLogTable.setRowHeight(30);
+        timeLogTable.getTableHeader().setBackground(new Color(245, 247, 250));
+        timeLogTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 12));
         
         loadTimeLogs();
 
         JScrollPane scrollPane = new JScrollPane(timeLogTable);
+        scrollPane.getViewport().setBackground(Color.WHITE);
         add(scrollPane, BorderLayout.CENTER);
+        
+        // Pagination (Mock)
+        JPanel footerPanel = new JPanel(new BorderLayout());
+        footerPanel.setBackground(Color.WHITE);
+        footerPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
+        
+        JLabel legend = new JLabel("Legend: Four"); // From image
+        JPanel pagination = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        pagination.setBackground(Color.WHITE);
+        pagination.add(new JButton("Prev"));
+        pagination.add(new JLabel("1 - 10 of 26 time logs displayed"));
+        pagination.add(new JButton("Next"));
+        
+        footerPanel.add(legend, BorderLayout.WEST);
+        footerPanel.add(pagination, BorderLayout.EAST);
+        
+        add(footerPanel, BorderLayout.SOUTH);
     }
 
     private void updateButtonState() {
-        java.time.LocalDate today = java.time.LocalDate.now();
-        List<TimeLog> logs = dataStore.getTimeLogs();
-        TimeLog todayLog = null;
-
-        for (TimeLog log : logs) {
-            if (log.getEmployeeId().equals(currentUser.getUsername()) && log.getDate().equals(today)) {
-                todayLog = log;
-                break;
+        try {
+            Optional<TimeLog> todayLog = timeLogService.getTodayLog(currentUser.getUsername());
+            
+            if (!todayLog.isPresent()) {
+                // No log for today -> Can Time In
+                timeInButton.setEnabled(true);
+                timeOutButton.setEnabled(false);
+                statusLabel.setText("Status: Not yet timed in.");
+            } else if (todayLog.get().getTimeOut() == null) {
+                // Timed in, but not out -> Can Time Out
+                timeInButton.setEnabled(false);
+                timeOutButton.setEnabled(true);
+                statusLabel.setText("Status: Timed in at " + todayLog.get().getTimeIn());
+            } else {
+                // Completed for today
+                timeInButton.setEnabled(false);
+                timeOutButton.setEnabled(false);
+                statusLabel.setText("Status: Completed for today.");
             }
-        }
-
-        if (todayLog == null) {
-            timeInButton.setEnabled(true);
-            timeOutButton.setEnabled(false);
-            statusLabel.setText("Status: Not yet timed in today.");
-        } else if (todayLog.getTimeOut() == null) {
-            timeInButton.setEnabled(false);
-            timeOutButton.setEnabled(true);
-            statusLabel.setText("Status: Timed in at " + todayLog.getTimeIn().format(DateTimeFormatter.ofPattern("hh:mm a")));
-        } else {
-            timeInButton.setEnabled(false);
-            timeOutButton.setEnabled(false);
-            statusLabel.setText("Status: Attendance completed for today.");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     private void performTimeIn() {
-        java.util.Optional<com.motorph.model.Employee> empOpt = dataStore.findEmployeeById(currentUser.getUsername());
-        if (empOpt.isPresent()) {
-            com.motorph.model.Employee emp = empOpt.get();
-            TimeLog newLog = new TimeLog(
-                emp.getEmployeeId(),
-                emp.getLastName(),
-                emp.getFirstName(),
-                java.time.LocalDate.now(),
-                java.time.LocalTime.now(),
-                null
-            );
-            dataStore.addTimeLog(newLog);
-            JOptionPane.showMessageDialog(this, "Timed In Successfully!");
-            loadTimeLogs();
+        try {
+            timeLogService.timeIn(currentUser.getUsername());
+            JOptionPane.showMessageDialog(this, "Timed in successfully!");
             updateButtonState();
-        } else {
-            JOptionPane.showMessageDialog(this, "Error: Employee record not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            loadTimeLogs();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
         }
     }
 
     private void performTimeOut() {
-        java.time.LocalDate today = java.time.LocalDate.now();
-        List<TimeLog> logs = dataStore.getTimeLogs();
-        for (TimeLog log : logs) {
-            if (log.getEmployeeId().equals(currentUser.getUsername()) && log.getDate().equals(today)) {
-                log.setTimeOut(java.time.LocalTime.now());
-                dataStore.updateTimeLog(log);
-                JOptionPane.showMessageDialog(this, "Timed Out Successfully!");
-                loadTimeLogs();
-                updateButtonState();
-                return;
-            }
+        try {
+            timeLogService.timeOut(currentUser.getUsername());
+            JOptionPane.showMessageDialog(this, "Timed out successfully!");
+            updateButtonState();
+            loadTimeLogs();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
         }
     }
 
     private void loadTimeLogs() {
-        List<TimeLog> logs = dataStore.getTimeLogs();
+        List<TimeLog> logs = timeLogService.getAllTimeLogs();
         tableModel.setRowCount(0);
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("hh:mm a");
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy");
         
         boolean isAdminOrHR = currentUser.getRole().equalsIgnoreCase("Admin") || 
                               currentUser.getRole().equalsIgnoreCase("HR");
@@ -147,13 +182,24 @@ public class TimeLogPanel extends JPanel {
         for (TimeLog log : logs) {
             // Filter: Show all for Admin/HR, otherwise only own logs
             if (isAdminOrHR || log.getEmployeeId().equals(currentUser.getUsername())) {
+                
+                String status = timeLogService.isLate(log) ? "Late" : "On time";
+                
+                String paidTime = "-";
+                double hours = timeLogService.calculateHoursWorked(log);
+                if (hours > 0) {
+                    paidTime = String.format("%.2f hrs", hours);
+                }
+
                 tableModel.addRow(new Object[]{
                     log.getEmployeeId(),
-                    log.getLastName(),
-                    log.getFirstName(),
-                    log.getDate().toString(),
+                    log.getLastName() + ", " + log.getFirstName(), // Combined Name
+                    log.getDate().format(dateFormatter),
                     log.getTimeIn() != null ? log.getTimeIn().format(timeFormatter) : "-",
-                    log.getTimeOut() != null ? log.getTimeOut().format(timeFormatter) : "-"
+                    log.getTimeOut() != null ? log.getTimeOut().format(timeFormatter) : "-",
+                    paidTime,
+                    status,
+                    "OK" // Mock Notes
                 });
             }
         }

@@ -28,35 +28,69 @@ public class PayrollPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         // Input Panel
-        JPanel inputPanel = new JPanel(new GridLayout(4, 2, 10, 10)); 
+        JPanel inputPanel = new JPanel(new GridBagLayout()); 
         inputPanel.setBorder(BorderFactory.createTitledBorder("Payslip Generator"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
 
-        inputPanel.add(new JLabel("Employee ID:"));
-        employeeIdField = new JTextField();
-        inputPanel.add(employeeIdField);
+        // Employee ID Section
+        gbc.gridx = 0; gbc.gridy = 0;
+        inputPanel.add(new JLabel("Employee Number:"), gbc);
+        
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        employeeIdField = new JTextField(15);
+        inputPanel.add(employeeIdField, gbc);
 
-        inputPanel.add(new JLabel("Month:"));
+        // Pay Coverage Section
+        gbc.gridx = 0; gbc.gridy = 1;
+        inputPanel.add(new JLabel("Pay Coverage:"), gbc);
+        
+        JPanel coveragePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        
         String[] months = new String[12];
         for (int i = 0; i < 12; i++) {
             months[i] = Month.of(i + 1).name();
         }
         monthComboBox = new JComboBox<>(months);
         monthComboBox.setSelectedIndex(Month.SEPTEMBER.getValue() - 1);
-        inputPanel.add(monthComboBox);
-
-        inputPanel.add(new JLabel("Year:"));
+        coveragePanel.add(monthComboBox);
+        
+        coveragePanel.add(Box.createHorizontalStrut(10));
+        
         yearComboBox = new JComboBox<>();
         int currentYear = Year.now().getValue();
         for (int i = currentYear - 5; i <= currentYear + 1; i++) {
             yearComboBox.addItem(i);
         }
         yearComboBox.setSelectedItem(2024);
-        inputPanel.add(yearComboBox);
+        coveragePanel.add(yearComboBox);
+        
+        gbc.gridx = 1;
+        inputPanel.add(coveragePanel, gbc);
 
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton calculateButton = new JButton("View Payslip");
+        calculateButton.setBackground(new Color(46, 204, 113));
+        calculateButton.setForeground(Color.WHITE);
         calculateButton.addActionListener(e -> calculatePayroll());
-        inputPanel.add(new JLabel("")); // Spacer
-        inputPanel.add(calculateButton);
+        
+        JButton clearButton = new JButton("Clear");
+        clearButton.addActionListener(e -> {
+            employeeIdField.setText("");
+            resultArea.setText("");
+        });
+        
+        buttonPanel.add(clearButton);
+        buttonPanel.add(calculateButton);
+        
+        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.EAST;
+        inputPanel.add(buttonPanel, gbc);
 
         add(inputPanel, BorderLayout.NORTH);
 

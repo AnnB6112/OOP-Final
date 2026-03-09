@@ -1,20 +1,19 @@
 package com.motorph.gui;
 
-import com.motorph.data.DataStore;
 import com.motorph.model.Employee;
 import com.motorph.model.LeaveRequest;
 import com.motorph.model.User;
+import com.motorph.service.LeaveService;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class LeavePanel extends JPanel {
     private User currentUser;
-    private DataStore dataStore;
+    private LeaveService leaveService;
     private JTabbedPane tabbedPane;
     
     // My Leaves Components
@@ -27,7 +26,7 @@ public class LeavePanel extends JPanel {
 
     public LeavePanel(User user) {
         this.currentUser = user;
-        this.dataStore = DataStore.getInstance();
+        this.leaveService = new LeaveService();
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -50,17 +49,7 @@ public class LeavePanel extends JPanel {
     }
 
     private boolean canManageLeaves() {
-        String role = currentUser.getRole();
-        if (role.equalsIgnoreCase("Admin") || role.equalsIgnoreCase("HR")) {
-            return true;
-        }
-        
-        // Check if employee is a supervisor based on position
-        return dataStore.findEmployeeById(currentUser.getUsername())
-            .map(emp -> emp.getPosition().toLowerCase().contains("supervisor") || 
-                        emp.getPosition().toLowerCase().contains("manager") ||
-                        emp.getPosition().toLowerCase().contains("lead"))
-            .orElse(false);
+        return leaveService.canManageLeaves(currentUser);
     }
 
     private JPanel createMyLeavesPanel() {
@@ -134,51 +123,63 @@ public class LeavePanel extends JPanel {
 
     private void loadMyLeaves() {
         myLeavesModel.setRowCount(0);
-        List<LeaveRequest> requests = dataStore.getLeaveRequests();
+        List<LeaveRequest> requests = leaveService.getLeaveRequestsByEmployee(currentUser.getUsername());
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         for (LeaveRequest req : requests) {
-            if (req.getEmployeeId().equals(currentUser.getUsername())) {
-                myLeavesModel.addRow(new Object[]{
-                    req.getDateRequested().format(formatter),
-                    req.getType(),
-                    req.getStartDate().format(formatter),
-                    req.getEndDate().format(formatter),
-                    req.getReason(),
-                    req.getStatus(),
-                    req.getApproverId() != null ? req.getApproverId() : "-"
-                });
-            }
+            myLeavesModel.addRow(new Object[]{
+                req.getDateRequested().format(formatter),
+                req.getType(),
+                req.getStartDate().format(formatter),
+                req.getEndDate().format(formatter),
+                req.getReason(),
+                req.getStatus(),
+                req.getApproverId() != null ? req.getApproverId() : "-"
+            });
         }
     }
 
     private void loadManageLeaves() {
         manageLeavesModel.setRowCount(0);
-        List<LeaveRequest> requests = dataStore.getLeaveRequests();
+        List<LeaveRequest> requests = leaveService.getPendingLeaveRequests();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         for (LeaveRequest req : requests) {
-            // Only show Pending requests
-            if (req.getStatus().equalsIgnoreCase("Pending")) {
-                manageLeavesModel.addRow(new Object[]{
-                    req.getRequestId(),
-                    req.getLastName() + ", " + req.getFirstName(),
-                    req.getType(),
-                    req.getStartDate().format(formatter),
-                    req.getEndDate().format(formatter),
-                    req.getReason(),
-                    req.getStatus()
-                });
-            }
+            manageLeavesModel.addRow(new Object[]{
+                req.getRequestId(),
+                req.getLastName() + ", " + req.getFirstName(),
+                req.getType(),
+                req.getStartDate().format(formatter),
+                req.getEndDate().format(formatter),
+                req.getReason(),
+                req.getStatus()
+            });
         }
     }
 
     private void showRequestLeaveDialog() {
-        // Check if current user is an employee
-        if (!dataStore.findEmployeeById(currentUser.getUsername()).isPresent()) {
-            JOptionPane.showMessageDialog(this, "Only registered employees can submit leave requests.", "Access Denied", JOptionPane.WARNING_MESSAGE);
-            return;
+        java.util.Optional<Employee> empOpt = leaveService.getEmployee(currentUser.getUsername());
+        
+        // If not found, check if it's the specific "admin" account and allow mock submission or warn
+        if (!empOpt.isPresent()) {
+            if (currentUser.getRole().equalsIgnoreCase("Admin")) {
+                String empId = JOptionPane.showInputDialog(this, "Admin Employee ID not found.\nEnter Employee ID to file leave for:", "File Leave", JOptionPane.QUESTION_MESSAGE);
+                if (empId != null && !empId.trim().isEmpty()) {
+                     empOpt = leaveService.getEmployee(empId);
+                     if (!empOpt.isPresent()) {
+                         JOptionPane.showMessageDialog(this, "Employee ID not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                         return;
+                     }
+                } else {
+                    return; // Cancelled
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Only registered employees can submit leave requests.", "Access Denied", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
         }
+
+        Employee emp = empOpt.get(); // We have an employee record now
 
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Request Leave", true);
         dialog.setLayout(new GridLayout(5, 2, 10, 10));
@@ -208,33 +209,21 @@ public class LeavePanel extends JPanel {
                 LocalDate start = LocalDate.parse(startDateField.getText());
                 LocalDate end = LocalDate.parse(endDateField.getText());
                 
-                if (end.isBefore(start)) {
-                    JOptionPane.showMessageDialog(dialog, "End date cannot be before start date.");
-                    return;
-                }
-
-                // Get Employee details
-                Employee emp = dataStore.findEmployeeById(currentUser.getUsername())
-                    .orElseThrow(() -> new IllegalStateException("Employee record not found"));
-
-                LeaveRequest request = new LeaveRequest(
+                leaveService.submitLeaveRequest(
                     emp.getEmployeeId(),
-                    emp.getLastName(),
-                    emp.getFirstName(),
                     (String) typeBox.getSelectedItem(),
                     start,
                     end,
                     reasonField.getText()
                 );
 
-                dataStore.addLeaveRequest(request);
-                JOptionPane.showMessageDialog(dialog, "Leave request submitted!");
+                JOptionPane.showMessageDialog(dialog, "Leave request submitted for " + emp.getFirstName() + " " + emp.getLastName());
                 dialog.dispose();
                 loadMyLeaves();
                 if (canManageLeaves()) loadManageLeaves();
 
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, "Invalid date format or data: " + ex.getMessage());
+                JOptionPane.showMessageDialog(dialog, "Error: " + ex.getMessage());
             }
         });
         dialog.add(submitButton);
@@ -250,19 +239,14 @@ public class LeavePanel extends JPanel {
         }
 
         String requestId = (String) manageLeavesModel.getValueAt(selectedRow, 0);
-        List<LeaveRequest> requests = dataStore.getLeaveRequests();
         
-        for (LeaveRequest req : requests) {
-            if (req.getRequestId().equals(requestId)) {
-                req.setStatus(approve ? "Approved" : "Rejected");
-                req.setApproverId(currentUser.getUsername());
-                dataStore.updateLeaveRequest(req);
-                break;
-            }
+        try {
+            leaveService.processLeaveRequest(requestId, approve, currentUser.getUsername());
+            loadManageLeaves();
+            loadMyLeaves();
+            JOptionPane.showMessageDialog(this, "Request " + (approve ? "Approved" : "Rejected"));
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error processing request: " + e.getMessage());
         }
-        
-        loadManageLeaves();
-        loadMyLeaves();
-        JOptionPane.showMessageDialog(this, "Request " + (approve ? "Approved" : "Rejected"));
     }
 }

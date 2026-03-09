@@ -1,19 +1,21 @@
 package com.motorph.gui;
 
-import com.motorph.dao.CsvUtil;
 import com.motorph.model.User;
+import com.motorph.service.AuthenticationService;
 import javax.swing.*;
 import java.awt.*;
-import java.util.List;
 
 public class LoginFrame extends JFrame {
     private JTextField usernameField;
     private JPasswordField passwordField;
+    private AuthenticationService authService;
 
     public LoginFrame() {
+        this.authService = new AuthenticationService();
+        System.out.println("LoginFrame: Constructor started.");
         setTitle("MotorPH Login");
-        setSize(400, 250);
-        setLocationRelativeTo(null);
+        // setSize(400, 250); // Removed in favor of pack()
+        
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
@@ -69,30 +71,36 @@ public class LoginFrame extends JFrame {
         
         // Add Enter key listener for password field
         getRootPane().setDefaultButton(loginButton);
+        
+        // pack(); // Adjust size to fit components
+        setSize(400, 300);
+        setLocationRelativeTo(null); // Center on screen
+        // setMinimumSize(new Dimension(400, 250)); // Ensure it's not too small
+        System.out.println("LoginFrame: Constructor finished.");
     }
 
     private void authenticate() {
         String username = usernameField.getText().trim();
         String password = new String(passwordField.getPassword());
 
-        List<User> users = CsvUtil.loadUsers();
-        User validUser = null;
-
-        for (User user : users) {
-            if (user.getUsername().equals(username) && user.getPassword().equals(password)) {
-                validUser = user;
-                break;
-            }
-        }
+        User validUser = authService.authenticate(username, password);
 
         if (validUser != null) {
             // Launch Main Frame with authenticated user
             User finalUser = validUser;
             SwingUtilities.invokeLater(() -> {
-                MainFrame mainFrame = new MainFrame(finalUser);
-                mainFrame.setVisible(true);
+                try {
+                    MainFrame mainFrame = new MainFrame(finalUser);
+                    mainFrame.setVisible(true);
+                    dispose(); // Close Login Frame only if MainFrame launches successfully
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(null, 
+                        "Error launching application: " + e.getMessage(), 
+                        "System Error", 
+                        JOptionPane.ERROR_MESSAGE);
+                }
             });
-            dispose(); // Close Login Frame
         } else {
             JOptionPane.showMessageDialog(this, "Invalid username or password.", "Login Failed", JOptionPane.ERROR_MESSAGE);
         }

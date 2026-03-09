@@ -1,38 +1,61 @@
 package com.motorph.gui;
 
-import com.motorph.data.DataStore;
 import com.motorph.model.Employee;
+import com.motorph.model.TimeLog;
+import com.motorph.service.EmployeeService;
+import com.motorph.service.TimeLogService;
 
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
 public class EmployeePanel extends JPanel {
     private JTable employeeTable;
     private DefaultTableModel tableModel;
-    private DataStore dataStore;
+    private EmployeeService employeeService;
+    
+    // Time Logs Table (Nested inside Employee Panel)
+    private JTable timeLogTable;
+    private DefaultTableModel timeLogModel;
+    private TimeLogService timeLogService;
 
-    // Detail Fields
-    private JTextField idField, lastNameField, firstNameField, positionField, salaryField, rateField;
-    private JTextField sssField, philHealthField, tinField, pagIbigField;
-    private JButton updateButton, deleteButton;
+    // Form Fields
+    private JTextField txtEmployeeId;
+    private JTextField txtFirstName;
+    private JTextField txtLastName;
+    private JTextField txtBirthday;
+    private JTextField txtAddress;
+    private JTextField txtPhoneNumber;
+    private JTextField txtSss;
+    private JTextField txtPhilHealth;
+    private JTextField txtTin;
+    private JTextField txtPagIbig;
+    private JTextField txtStatus;
+    private JTextField txtPosition;
+    private JTextField txtSupervisor;
+    private JTextField txtBasicSalary;
+    private JTextField txtRiceSubsidy;
+    private JTextField txtPhoneAllowance;
+    private JTextField txtClothingAllowance;
+    private JTextField txtGrossRate;
+    private JTextField txtHourlyRate;
+
+    private JButton updateButton;
+    private JButton deleteButton;
+    private JButton clearButton;
 
     public EmployeePanel() {
-        this.dataStore = DataStore.getInstance();
-        setLayout(new BorderLayout());
+        this.employeeService = new EmployeeService();
+        this.timeLogService = new TimeLogService();
+        setLayout(new BorderLayout(10, 10)); // Added gap
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // --- SPLIT PANE LAYOUT ---
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        splitPane.setResizeWeight(0.6); // Table takes 60% height
-
-        // 1. TOP: Table Panel
-        JPanel tablePanel = new JPanel(new BorderLayout());
-        String[] columns = {"ID", "Last Name", "First Name", "Position"};
+        // --- TOP: Table Panel ---
+        // Table
+        String[] columns = {"ID", "Last Name", "First Name", "Position", "Supervisor"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -43,204 +66,361 @@ public class EmployeePanel extends JPanel {
         employeeTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         employeeTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                populateFieldsFromSelection();
+                loadSelectedEmployeeToForm();
             }
         });
+        JScrollPane tableScroll = new JScrollPane(employeeTable);
+        tableScroll.setPreferredSize(new Dimension(800, 200));
 
-        tablePanel.add(new JScrollPane(employeeTable), BorderLayout.CENTER);
-        splitPane.setTopComponent(tablePanel);
-
-        // 2. BOTTOM: Details & Action Panel
-        JPanel detailsContainer = new JPanel(new BorderLayout());
+        // --- BOTTOM: Form Panel ---
+        JPanel formPanel = createFormPanel();
         
-        // Form Panel
-        JPanel formPanel = new JPanel(new GridLayout(5, 4, 10, 10));
-        formPanel.setBorder(BorderFactory.createTitledBorder("Selected Employee Details"));
+        // --- BUTTONS ---
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         
-        idField = createField(formPanel, "ID:", false); // ID not editable
-        lastNameField = createField(formPanel, "Last Name:", true);
-        firstNameField = createField(formPanel, "First Name:", true);
-        positionField = createField(formPanel, "Position:", true);
-        salaryField = createField(formPanel, "Basic Salary:", true);
-        rateField = createField(formPanel, "Hourly Rate:", true);
-        sssField = createField(formPanel, "SSS:", true);
-        philHealthField = createField(formPanel, "PhilHealth:", true);
-        tinField = createField(formPanel, "TIN:", true);
-        pagIbigField = createField(formPanel, "Pag-IBIG:", true);
-
-        detailsContainer.add(formPanel, BorderLayout.CENTER);
-
-        // Buttons Panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-
-        JButton viewButton = new JButton("View Full Details");
-        viewButton.addActionListener(e -> viewSelectedEmployee());
-        buttonPanel.add(viewButton);
-
-        JButton addButton = new JButton("New Employee");
-        addButton.addActionListener(e -> openNewEmployeeFrame());
-        buttonPanel.add(addButton);
-
+        JButton newButton = new JButton("New Employee");
+        newButton.addActionListener(e -> openNewEmployeeFrame());
+        
         updateButton = new JButton("Update");
         updateButton.setEnabled(false);
         updateButton.addActionListener(e -> updateEmployee());
-        buttonPanel.add(updateButton);
 
         deleteButton = new JButton("Delete");
         deleteButton.setEnabled(false);
-        deleteButton.setBackground(new Color(220, 53, 69)); // Red color
-        deleteButton.setForeground(Color.WHITE);
         deleteButton.addActionListener(e -> deleteEmployee());
-        buttonPanel.add(deleteButton);
 
-        detailsContainer.add(buttonPanel, BorderLayout.SOUTH);
-        splitPane.setBottomComponent(detailsContainer);
+        clearButton = new JButton("Clear Selection");
+        clearButton.addActionListener(e -> clearForm());
 
+        actionPanel.add(newButton);
+        actionPanel.add(updateButton);
+        actionPanel.add(deleteButton);
+        actionPanel.add(clearButton);
+
+        // Combine Form and Buttons
+        JPanel detailsPanel = new JPanel(new BorderLayout());
+        detailsPanel.add(formPanel, BorderLayout.CENTER);
+        detailsPanel.add(actionPanel, BorderLayout.SOUTH);
+        
+        // --- TIME LOGS PANEL (New) ---
+        JPanel timeLogPanel = createTimeLogPanel();
+
+        // Use Tabbed Pane for Details vs Logs
+        JTabbedPane bottomTabs = new JTabbedPane();
+        bottomTabs.addTab("Employee Details", detailsPanel);
+        bottomTabs.addTab("Attendance History", timeLogPanel);
+
+        // Main Layout using SplitPane
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tableScroll, bottomTabs);
+        splitPane.setResizeWeight(0.4); // 40% split for table
+        splitPane.setDividerLocation(250); // Initial height for table
+        
         add(splitPane, BorderLayout.CENTER);
 
         loadEmployeeData();
     }
+    
+    private JPanel createTimeLogPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        
+        String[] logCols = {"Date", "Time In", "Time Out", "Hours"};
+        timeLogModel = new DefaultTableModel(logCols, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+        timeLogTable = new JTable(timeLogModel);
+        panel.add(new JScrollPane(timeLogTable), BorderLayout.CENTER);
+        
+        return panel;
+    }
 
-    private JTextField createField(JPanel panel, String label, boolean editable) {
-        panel.add(new JLabel(label));
-        JTextField field = new JTextField();
-        field.setEditable(editable);
-        panel.add(field);
-        return field;
+    private void loadEmployeeTimeLogs(String empId) {
+        timeLogModel.setRowCount(0);
+        List<TimeLog> logs = timeLogService.getTimeLogsForEmployee(empId);
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("hh:mm a");
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy");
+        
+        for (TimeLog log : logs) {
+            String paidTime = "-";
+            double hours = timeLogService.calculateHoursWorked(log);
+            if (hours > 0) {
+                paidTime = String.format("%.2f", hours);
+            }
+            
+            timeLogModel.addRow(new Object[]{
+                log.getDate().format(dateFormatter),
+                log.getTimeIn() != null ? log.getTimeIn().format(timeFormatter) : "-",
+                log.getTimeOut() != null ? log.getTimeOut().format(timeFormatter) : "-",
+                paidTime
+            });
+        }
+    }
+
+    private JPanel createFormPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Employee Details"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Initialize Fields
+        txtEmployeeId = new JTextField(15); txtEmployeeId.setEditable(false); // ID should not be editable usually
+        txtFirstName = new JTextField(15);
+        txtLastName = new JTextField(15);
+        txtBirthday = new JTextField(10);
+        txtAddress = new JTextField(20);
+        txtPhoneNumber = new JTextField(12);
+        txtSss = new JTextField(12);
+        txtPhilHealth = new JTextField(12);
+        txtTin = new JTextField(12);
+        txtPagIbig = new JTextField(12);
+        txtStatus = new JTextField(10);
+        txtPosition = new JTextField(15);
+        txtSupervisor = new JTextField(15);
+        txtBasicSalary = new JTextField(10);
+        txtRiceSubsidy = new JTextField(10);
+        txtPhoneAllowance = new JTextField(10);
+        txtClothingAllowance = new JTextField(10);
+        txtGrossRate = new JTextField(10);
+        txtHourlyRate = new JTextField(10);
+
+        // Add Fields to Grid
+        // Row 0
+        addLabelAndField(panel, "Employee ID:", txtEmployeeId, gbc, 0, 0);
+        addLabelAndField(panel, "Status:", txtStatus, gbc, 2, 0);
+
+        // Row 1
+        addLabelAndField(panel, "First Name:", txtFirstName, gbc, 0, 1);
+        addLabelAndField(panel, "Last Name:", txtLastName, gbc, 2, 1);
+
+        // Row 2
+        addLabelAndField(panel, "Birthday:", txtBirthday, gbc, 0, 2);
+        addLabelAndField(panel, "Phone:", txtPhoneNumber, gbc, 2, 2);
+
+        // Row 3
+        addLabelAndField(panel, "Address:", txtAddress, gbc, 0, 3, 3); // Span 3 cols
+
+        // Row 4 - IDs
+        addLabelAndField(panel, "SSS #:", txtSss, gbc, 0, 4);
+        addLabelAndField(panel, "PhilHealth #:", txtPhilHealth, gbc, 2, 4);
+
+        // Row 5
+        addLabelAndField(panel, "TIN #:", txtTin, gbc, 0, 5);
+        addLabelAndField(panel, "Pag-IBIG #:", txtPagIbig, gbc, 2, 5);
+
+        // Row 6 - Job
+        addLabelAndField(panel, "Position:", txtPosition, gbc, 0, 6);
+        addLabelAndField(panel, "Supervisor:", txtSupervisor, gbc, 2, 6);
+
+        // Row 7 - Salary
+        addLabelAndField(panel, "Basic Salary:", txtBasicSalary, gbc, 0, 7);
+        addLabelAndField(panel, "Hourly Rate:", txtHourlyRate, gbc, 2, 7);
+
+        // Row 8 - Allowances
+        addLabelAndField(panel, "Rice Subsidy:", txtRiceSubsidy, gbc, 0, 8);
+        addLabelAndField(panel, "Phone Allow.:", txtPhoneAllowance, gbc, 2, 8);
+
+        // Row 9
+        addLabelAndField(panel, "Clothing Allow.:", txtClothingAllowance, gbc, 0, 9);
+        addLabelAndField(panel, "Gross SM Rate:", txtGrossRate, gbc, 2, 9);
+
+        return new JPanel();
+    }
+
+    private void addLabelAndField(JPanel panel, String labelText, Component field, GridBagConstraints gbc, int x, int y) {
+        addLabelAndField(panel, labelText, field, gbc, x, y, 1);
+    }
+
+    private void addLabelAndField(JPanel panel, String labelText, Component field, GridBagConstraints gbc, int x, int y, int width) {
+        gbc.gridx = x;
+        gbc.gridy = y;
+        gbc.weightx = 0;
+        gbc.gridwidth = 1;
+        panel.add(new JLabel(labelText), gbc);
+
+        gbc.gridx = x + 1;
+        gbc.weightx = 1.0;
+        gbc.gridwidth = width;
+        panel.add(field, gbc);
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            JFrame frame = new JFrame("Employee Panel Test");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.add(new EmployeePanel());
+            frame.setSize(900, 700);
+            frame.setLocationRelativeTo(null);
+            frame.setVisible(true);
+        });
     }
 
     private void loadEmployeeData() {
-        List<Employee> employees = dataStore.getEmployees();
+        List<Employee> employees = employeeService.getAllEmployees();
         tableModel.setRowCount(0); 
         for (Employee emp : employees) {
             tableModel.addRow(new Object[]{
                     emp.getEmployeeId(),
                     emp.getLastName(),
                     emp.getFirstName(),
-                    emp.getPosition()
+                    emp.getPosition(),
+                    emp.getImmediateSupervisor()
             });
         }
     }
 
-    private void populateFieldsFromSelection() {
+    private void loadSelectedEmployeeToForm() {
         int selectedRow = employeeTable.getSelectedRow();
         if (selectedRow != -1) {
             String empId = (String) tableModel.getValueAt(selectedRow, 0);
-            Optional<Employee> empOpt = dataStore.findEmployeeById(empId);
+            Optional<Employee> empOpt = employeeService.getEmployeeById(empId);
             
             if (empOpt.isPresent()) {
-                Employee emp = empOpt.get();
-                idField.setText(emp.getEmployeeId());
-                lastNameField.setText(emp.getLastName());
-                firstNameField.setText(emp.getFirstName());
-                positionField.setText(emp.getPosition());
-                salaryField.setText(String.valueOf(emp.getBasicSalary()));
-                rateField.setText(String.valueOf(emp.getHourlyRate()));
-                sssField.setText(emp.getSssNumber());
-                philHealthField.setText(emp.getPhilHealthNumber());
-                tinField.setText(emp.getTinNumber());
-                pagIbigField.setText(emp.getPagIbigNumber());
+                Employee e = empOpt.get();
+                txtEmployeeId.setText(e.getEmployeeId());
+                txtFirstName.setText(e.getFirstName());
+                txtLastName.setText(e.getLastName());
+                txtBirthday.setText(e.getBirthday());
+                txtAddress.setText(e.getAddress());
+                txtPhoneNumber.setText(e.getPhoneNumber());
+                txtSss.setText(e.getSssNumber());
+                txtPhilHealth.setText(e.getPhilHealthNumber());
+                txtTin.setText(e.getTinNumber());
+                txtPagIbig.setText(e.getPagIbigNumber());
+                txtStatus.setText(e.getStatus());
+                txtPosition.setText(e.getPosition());
+                txtSupervisor.setText(e.getImmediateSupervisor());
+                txtBasicSalary.setText(String.valueOf(e.getBasicSalary()));
+                txtRiceSubsidy.setText(String.valueOf(e.getRiceSubsidy()));
+                txtPhoneAllowance.setText(String.valueOf(e.getPhoneAllowance()));
+                txtClothingAllowance.setText(String.valueOf(e.getClothingAllowance()));
+                txtGrossRate.setText(String.valueOf(e.getGrossSemiMonthlyRate()));
+                txtHourlyRate.setText(String.valueOf(e.getHourlyRate()));
 
                 updateButton.setEnabled(true);
                 deleteButton.setEnabled(true);
+                
+                // Load Time Logs for selected employee
+                loadEmployeeTimeLogs(e.getEmployeeId());
             }
-        } else {
-            clearFields();
-            updateButton.setEnabled(false);
-            deleteButton.setEnabled(false);
         }
     }
 
-    private void clearFields() {
-        idField.setText("");
-        lastNameField.setText("");
-        firstNameField.setText("");
-        positionField.setText("");
-        salaryField.setText("");
-        rateField.setText("");
-        sssField.setText("");
-        philHealthField.setText("");
-        tinField.setText("");
-        pagIbigField.setText("");
+    private void clearForm() {
+        employeeTable.clearSelection();
+        txtEmployeeId.setText("");
+        txtFirstName.setText("");
+        txtLastName.setText("");
+        txtBirthday.setText("");
+        txtAddress.setText("");
+        txtPhoneNumber.setText("");
+        txtSss.setText("");
+        txtPhilHealth.setText("");
+        txtTin.setText("");
+        txtPagIbig.setText("");
+        txtStatus.setText("");
+        txtPosition.setText("");
+        txtSupervisor.setText("");
+        txtBasicSalary.setText("");
+        txtRiceSubsidy.setText("");
+        txtPhoneAllowance.setText("");
+        txtClothingAllowance.setText("");
+        txtGrossRate.setText("");
+        txtHourlyRate.setText("");
+        
+        if (timeLogModel != null) {
+            timeLogModel.setRowCount(0);
+        }
+
+        updateButton.setEnabled(false);
+        deleteButton.setEnabled(false);
     }
 
     private void updateEmployee() {
+        String empId = txtEmployeeId.getText();
+        if (empId.isEmpty()) return;
+
         try {
-            String id = idField.getText();
-            Optional<Employee> empOpt = dataStore.findEmployeeById(id);
-            if (!empOpt.isPresent()) return;
+            // Basic Validation
+            if (txtFirstName.getText().trim().isEmpty() || txtLastName.getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Name fields cannot be empty.");
+                return;
+            }
 
-            Employee existingEmp = empOpt.get();
+            // Parse numbers
+            double basicSalary = parseDouble(txtBasicSalary.getText());
+            double rice = parseDouble(txtRiceSubsidy.getText());
+            double phone = parseDouble(txtPhoneAllowance.getText());
+            double clothing = parseDouble(txtClothingAllowance.getText());
+            double gross = parseDouble(txtGrossRate.getText());
+            double hourly = parseDouble(txtHourlyRate.getText());
 
-            // Validate and Update fields
-            // We need to preserve existing data that isn't in the simplified form
+            // Create updated Employee object
             Employee updatedEmp = new Employee(
-                id,
-                firstNameField.getText(),
-                lastNameField.getText(),
-                existingEmp.getBirthday(),
-                existingEmp.getAddress(),
-                existingEmp.getPhoneNumber(),
-                sssField.getText(),
-                philHealthField.getText(),
-                tinField.getText(),
-                pagIbigField.getText(),
-                existingEmp.getStatus(),
-                positionField.getText(),
-                existingEmp.getImmediateSupervisor(),
-                Double.parseDouble(salaryField.getText()),
-                existingEmp.getRiceSubsidy(),
-                existingEmp.getPhoneAllowance(),
-                existingEmp.getClothingAllowance(),
-                existingEmp.getGrossSemiMonthlyRate(),
-                Double.parseDouble(rateField.getText())
+                empId,
+                txtFirstName.getText().trim(),
+                txtLastName.getText().trim(),
+                txtBirthday.getText().trim(),
+                txtAddress.getText().trim(),
+                txtPhoneNumber.getText().trim(),
+                txtSss.getText().trim(),
+                txtPhilHealth.getText().trim(),
+                txtTin.getText().trim(),
+                txtPagIbig.getText().trim(),
+                txtStatus.getText().trim(),
+                txtPosition.getText().trim(),
+                txtSupervisor.getText().trim(),
+                basicSalary,
+                rice,
+                phone,
+                clothing,
+                gross,
+                hourly
             );
 
-            dataStore.updateEmployee(updatedEmp);
+            employeeService.updateEmployee(updatedEmp);
             JOptionPane.showMessageDialog(this, "Employee updated successfully!");
             
-            // Refresh Data
-            loadEmployeeData(); 
-            
-            // Clear selection
-            employeeTable.clearSelection();
-            clearFields();
+            // Refresh table and keep selection if possible, or clear
+            loadEmployeeData();
+            clearForm();
 
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Invalid number format for Salary or Rate.", "Input Error", JOptionPane.ERROR_MESSAGE);
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Validation Error", JOptionPane.ERROR_MESSAGE);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error updating employee: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid number format in salary fields.");
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error updating employee: " + e.getMessage());
         }
     }
 
+    private double parseDouble(String text) {
+        if (text == null || text.trim().isEmpty()) return 0.0;
+        return Double.parseDouble(text.replace(",", "").trim());
+    }
+
     private void deleteEmployee() {
-        String id = idField.getText();
-        if (id.isEmpty()) return;
+        String id = txtEmployeeId.getText();
+        if (id.isEmpty()) {
+            // Try to get from table selection if form is empty but row is selected (though listener usually syncs them)
+            int selectedRow = employeeTable.getSelectedRow();
+            if (selectedRow != -1) {
+                id = (String) tableModel.getValueAt(selectedRow, 0);
+            } else {
+                JOptionPane.showMessageDialog(this, "Please select an employee to delete.");
+                return;
+            }
+        }
 
         int confirm = JOptionPane.showConfirmDialog(this, 
             "Are you sure you want to delete employee ID: " + id + "?", 
             "Confirm Delete", JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            dataStore.deleteEmployee(id);
+            employeeService.deleteEmployee(id);
             JOptionPane.showMessageDialog(this, "Employee deleted successfully!");
             loadEmployeeData(); // Refresh Table
-            clearFields();
-        }
-    }
-
-    private void viewSelectedEmployee() {
-        int selectedRow = employeeTable.getSelectedRow();
-        if (selectedRow == -1) return;
-
-        String empId = (String) tableModel.getValueAt(selectedRow, 0);
-        Optional<Employee> empOpt = dataStore.findEmployeeById(empId);
-        
-        if (empOpt.isPresent()) {
-            EmployeeDetailFrame detailFrame = new EmployeeDetailFrame(empOpt.get());
-            detailFrame.setVisible(true);
+            clearForm();
         }
     }
 

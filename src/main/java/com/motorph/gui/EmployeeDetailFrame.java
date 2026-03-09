@@ -100,7 +100,7 @@ public class EmployeeDetailFrame extends JFrame {
             StringBuilder sb = new StringBuilder();
             sb.append("--- PAYSLIP FOR ").append(selectedMonth.toUpperCase()).append(" ---\n\n");
             sb.append(String.format("%-20s: %.2f\n", "Gross Salary", payslip.getGrossSalary()));
-            sb.append(String.format("%-20s: %.2f\n", "Total Deductions", payslip.getDeductions()));
+            sb.append(String.format("%-20s: %.2f\n", "Total Deductions", payslip.getTotalDeductions()));
             sb.append("----------------------------------------\n");
             sb.append(String.format("%-20s: %.2f\n", "NET SALARY", payslip.getNetSalary()));
             
