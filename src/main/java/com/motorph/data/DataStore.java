@@ -113,10 +113,10 @@ public class DataStore {
             if (log.getEmployeeId().equals(updatedLog.getEmployeeId()) && 
                 log.getDate().equals(updatedLog.getDate())) {
                 timeLogs.set(i, updatedLog);
+                CsvUtil.saveAllTimeLogs(timeLogs);
                 break;
             }
         }
-        CsvUtil.saveAllTimeLogs(timeLogs);
     }
 
     public List<LeaveRequest> getLeaveRequests() {

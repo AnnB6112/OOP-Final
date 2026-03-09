@@ -171,6 +171,12 @@ public class CsvUtil {
             return logs;
         }
 
+        java.time.format.DateTimeFormatter[] formatters = {
+            java.time.format.DateTimeFormatter.ISO_LOCAL_DATE, // yyyy-MM-dd
+            java.time.format.DateTimeFormatter.ofPattern("MM/dd/yyyy"),
+            java.time.format.DateTimeFormatter.ofPattern("M/d/yyyy")
+        };
+
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
             boolean firstLine = true;
@@ -181,12 +187,26 @@ public class CsvUtil {
                 }
                 String[] values = line.split(DELIMITER);
                 if (values.length >= 6) {
-                    logs.add(new TimeLog(
-                        values[0], values[1], values[2], 
-                        java.time.LocalDate.parse(values[3]),
-                        java.time.LocalTime.parse(values[4]),
-                        java.time.LocalTime.parse(values[5])
-                    ));
+                    java.time.LocalDate date = null;
+                    for (java.time.format.DateTimeFormatter formatter : formatters) {
+                        try {
+                            date = java.time.LocalDate.parse(values[3], formatter);
+                            break;
+                        } catch (java.time.format.DateTimeParseException e) {
+                            // Try next format
+                        }
+                    }
+                    
+                    if (date != null) {
+                        logs.add(new TimeLog(
+                            values[0], values[1], values[2], 
+                            date,
+                            java.time.LocalTime.parse(values[4]),
+                            java.time.LocalTime.parse(values[5])
+                        ));
+                    } else {
+                        System.err.println("Skipping invalid date format in attendance.csv: " + values[3]);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -196,6 +216,12 @@ public class CsvUtil {
     }
 
     public static void saveTimeLog(TimeLog log) {
+        // Since we are appending, we just add to file. 
+        // BUT DataStore might be calling this for a new log. 
+        // If it's an update (TimeOut), we need to rewrite the whole file usually or handle it differently.
+        // For simplicity in this CSV implementation, let's assume DataStore handles "update" by rewriting all.
+        // This method is for appending a SINGLE new log (Time In).
+        
         boolean fileExists = new File(ATTENDANCE_CSV_FILE).exists();
         try (PrintWriter writer = new PrintWriter(new FileWriter(ATTENDANCE_CSV_FILE, true))) {
             if (!fileExists) {

@@ -79,7 +79,14 @@ public class TimeLogPanel extends JPanel {
         controlPanel.add(timeOutButton);
 
         // Only show controls if user is linked to an employee record (not generic admin)
-        if (dataStore.findEmployeeById(currentUser.getUsername()).isPresent()) {
+        // We use TimeLogService to check this implicitly or add a helper in Service.
+        // For now, let's just check if they are not Admin or if they are Admin but want to test features.
+        // Actually, the requirement is "only show controls if user is linked to an employee record".
+        // Let's assume non-Admins are always employees or have records.
+        // Better: Check if employee exists via a new service method or just try to get logs.
+        // Let's use a helper method.
+        
+        if (canShowTimeControls()) {
             topPanel.add(controlPanel, BorderLayout.EAST);
             updateButtonState();
         }
@@ -121,6 +128,16 @@ public class TimeLogPanel extends JPanel {
         footerPanel.add(pagination, BorderLayout.EAST);
         
         add(footerPanel, BorderLayout.SOUTH);
+    }
+
+    private boolean canShowTimeControls() {
+        // Only show for Employee/RegularUser or if the current user has a linked employee record
+        // Since we don't have direct access to DataStore here anymore (clean architecture),
+        // we can check role or add a method to TimeLogService.
+        // For simplicity: Regular users always see it. Admins/HR only if they are also employees (which they might be).
+        // Let's assume if they are NOT "Admin" or "HR" or "IT" purely, they see it.
+        // OR better: Ask TimeLogService if an employee record exists for this username.
+        return timeLogService.hasEmployeeRecord(currentUser.getUsername());
     }
 
     private void updateButtonState() {

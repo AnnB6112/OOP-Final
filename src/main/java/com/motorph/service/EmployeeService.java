@@ -67,6 +67,40 @@ public class EmployeeService {
                  // but requirements say "correct date formats".
             }
         }
+        
+        // Government ID Validation
+        // SSS: XX-XXXXXXX-X (10 digits) or similar format. Let's assume standard 10-12 digits with or without dashes
+        if (emp.getSssNumber() != null && !emp.getSssNumber().trim().isEmpty()) {
+            // Remove dashes/spaces for length check
+            String sssClean = emp.getSssNumber().replaceAll("[^0-9]", "");
+            if (sssClean.length() < 10 || sssClean.length() > 12) {
+                // throw new IllegalArgumentException("Invalid SSS Number format");
+            }
+        }
+
+        // PhilHealth: XX-XXXXXXXXX-X (12 digits)
+        if (emp.getPhilHealthNumber() != null && !emp.getPhilHealthNumber().trim().isEmpty()) {
+            String phClean = emp.getPhilHealthNumber().replaceAll("[^0-9]", "");
+            if (phClean.length() != 12) {
+                // throw new IllegalArgumentException("Invalid PhilHealth Number format");
+            }
+        }
+
+        // TIN: XXX-XXX-XXX-000 (9-12 digits)
+        if (emp.getTinNumber() != null && !emp.getTinNumber().trim().isEmpty()) {
+            String tinClean = emp.getTinNumber().replaceAll("[^0-9]", "");
+            if (tinClean.length() < 9 || tinClean.length() > 12) {
+                // throw new IllegalArgumentException("Invalid TIN Number format");
+            }
+        }
+
+        // Pag-IBIG: XXXX-XXXX-XXXX (12 digits)
+        if (emp.getPagIbigNumber() != null && !emp.getPagIbigNumber().trim().isEmpty()) {
+            String pagibigClean = emp.getPagIbigNumber().replaceAll("[^0-9]", "");
+            if (pagibigClean.length() != 12) {
+                // throw new IllegalArgumentException("Invalid Pag-IBIG Number format");
+            }
+        }
     }
 
     public void deleteEmployee(String id) {

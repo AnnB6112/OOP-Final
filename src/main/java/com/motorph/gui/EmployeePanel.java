@@ -141,6 +141,11 @@ public class EmployeePanel extends JPanel {
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("hh:mm a");
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy");
         
+        if (logs.isEmpty()) {
+            // Optional: Add a placeholder row or just leave it empty
+            // timeLogModel.addRow(new Object[]{"No records found", "-", "-", "-"});
+        }
+
         for (TimeLog log : logs) {
             String paidTime = "-";
             double hours = timeLogService.calculateHoursWorked(log);
@@ -275,9 +280,12 @@ public class EmployeePanel extends JPanel {
         int selectedRow = employeeTable.getSelectedRow();
         if (selectedRow != -1) {
             String empId = (String) tableModel.getValueAt(selectedRow, 0);
+            System.out.println("DEBUG: Selected row " + selectedRow + ", ID: " + empId);
+            
             Optional<Employee> empOpt = employeeService.getEmployeeById(empId);
             
             if (empOpt.isPresent()) {
+                System.out.println("DEBUG: Employee found: " + empId);
                 Employee e = empOpt.get();
                 txtEmployeeId.setText(e.getEmployeeId());
                 txtFirstName.setText(e.getFirstName());
@@ -303,7 +311,10 @@ public class EmployeePanel extends JPanel {
                 deleteButton.setEnabled(true);
                 
                 // Load Time Logs for selected employee
+                System.out.println("DEBUG: Loading logs for " + empId);
                 loadEmployeeTimeLogs(e.getEmployeeId());
+            } else {
+                System.err.println("DEBUG: Employee NOT found: " + empId);
             }
         }
     }

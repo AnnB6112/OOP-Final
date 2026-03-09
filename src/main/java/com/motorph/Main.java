@@ -2,36 +2,50 @@ package com.motorph;
 
 import com.motorph.gui.LoginFrame;
 import javax.swing.SwingUtilities;
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.io.IOException;
 
 public class Main {
+    public static void log(String message) {
+        System.out.println(message);
+        try (PrintWriter out = new PrintWriter(new FileWriter("debug.log", true))) {
+            out.println(message);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) {
-        System.out.println("Application Starting...");
+        log("Application Starting...");
         
         // Global Exception Handler for EDT
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
+            log("Uncaught Exception: " + e.getMessage());
             e.printStackTrace();
-            System.err.println("Uncaught Exception: " + e.getMessage());
-            javax.swing.JOptionPane.showMessageDialog(null, 
-                "An unexpected error occurred:\n" + e.getMessage() + "\n\nSee console for details.", 
-                "Application Error", 
-                javax.swing.JOptionPane.ERROR_MESSAGE);
+            try (PrintWriter out = new PrintWriter(new FileWriter("debug.log", true))) {
+                e.printStackTrace(out);
+            } catch (IOException ioEx) {
+                ioEx.printStackTrace();
+            }
         });
 
         // Launch Login Frame
         SwingUtilities.invokeLater(() -> {
             try {
-                System.out.println("Initializing LoginFrame...");
+                log("Initializing LoginFrame...");
                 LoginFrame loginFrame = new LoginFrame();
-                System.out.println("LoginFrame initialized. Setting visible...");
+                log("LoginFrame initialized. Setting visible...");
                 loginFrame.setVisible(true);
-                System.out.println("LoginFrame visible.");
+                log("LoginFrame visible.");
             } catch (Exception e) {
+                log("Error launching LoginFrame: " + e.getMessage());
                 e.printStackTrace();
-                System.err.println("Error launching LoginFrame: " + e.getMessage());
-                javax.swing.JOptionPane.showMessageDialog(null, 
-                    "Failed to launch login screen: " + e.getMessage(), 
-                    "Launch Error", 
-                    javax.swing.JOptionPane.ERROR_MESSAGE);
+                try (PrintWriter out = new PrintWriter(new FileWriter("debug.log", true))) {
+                    e.printStackTrace(out);
+                } catch (IOException ioEx) {
+                    ioEx.printStackTrace();
+                }
             }
         });
     }

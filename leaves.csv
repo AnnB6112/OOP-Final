@@ -2,3 +2,4 @@ RequestId,EmployeeId,LastName,FirstName,Type,StartDate,EndDate,Reason,Status,App
 eea38f80-9c20-4826-aabd-1a5a710faab9,10001,Garcia,Manuel III,Sick Leave,2026-03-09,2026-03-10,ER,Approved,admin,2026-03-09
 2926bbd6-684a-4de2-bfe3-eaf659d08a05,10036,Espinosa,Resiel Ann,Vacation Leave,2026-03-09,2026-03-10,nothing,Approved,admin,2026-03-09
 4a30c605-a61b-4c47-b673-80cf9979acd7,10034,Santos,Beatriz,Sick Leave,2026-03-09,2026-03-10,fever,Approved,admin,2026-03-09
+29f9b2d7-fbce-4117-9006-0876c942dc64,10002,Lim,Antonio,Sick Leave,2026-03-09,2026-03-10,sick,Approved,admin,2026-03-09

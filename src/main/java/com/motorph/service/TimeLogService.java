@@ -17,6 +17,10 @@ public class TimeLogService {
         this.dataStore = DataStore.getInstance();
     }
 
+    public boolean hasEmployeeRecord(String employeeId) {
+        return dataStore.findEmployeeById(employeeId).isPresent();
+    }
+
     public List<TimeLog> getAllTimeLogs() {
         return dataStore.getTimeLogs();
     }
@@ -58,7 +62,6 @@ public class TimeLogService {
     }
 
     public void timeOut(String employeeId) throws Exception {
-        LocalDate today = LocalDate.now();
         LocalTime now = LocalTime.now();
 
         TimeLog log = getTodayLog(employeeId)

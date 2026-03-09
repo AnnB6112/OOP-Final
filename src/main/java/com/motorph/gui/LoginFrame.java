@@ -55,16 +55,12 @@ public class LoginFrame extends JFrame {
         passwordField = new JPasswordField(15);
         panel.add(passwordField, gbc);
 
-        // Login Button
+        JButton loginButton = new JButton("Login");
+        loginButton.addActionListener(e -> authenticate());
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.gridwidth = 2;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.CENTER;
-        
-        JButton loginButton = new JButton("Login");
-        loginButton.setPreferredSize(new Dimension(100, 30));
-        loginButton.addActionListener(e -> authenticate());
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         panel.add(loginButton, gbc);
 
         add(panel, BorderLayout.CENTER);
@@ -72,11 +68,8 @@ public class LoginFrame extends JFrame {
         // Add Enter key listener for password field
         getRootPane().setDefaultButton(loginButton);
         
-        // pack(); // Adjust size to fit components
-        setSize(400, 300);
+        setSize(400, 250);
         setLocationRelativeTo(null); // Center on screen
-        // setMinimumSize(new Dimension(400, 250)); // Ensure it's not too small
-        System.out.println("LoginFrame: Constructor finished.");
     }
 
     private void authenticate() {
