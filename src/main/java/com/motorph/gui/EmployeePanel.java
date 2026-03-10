@@ -47,7 +47,10 @@ public class EmployeePanel extends JPanel {
     private JButton deleteButton;
     private JButton clearButton;
 
-    public EmployeePanel() {
+    private boolean canAddEmployee; // Store the permission flag
+
+    public EmployeePanel(boolean canAddEmployee) {
+        this.canAddEmployee = canAddEmployee;
         this.employeeService = new EmployeeService();
         this.timeLogService = new TimeLogService();
         setLayout(new BorderLayout(10, 10)); // Added gap
@@ -55,7 +58,7 @@ public class EmployeePanel extends JPanel {
 
         // --- TOP: Table Panel ---
         // Table
-        String[] columns = {"ID", "Last Name", "First Name", "Position", "Supervisor"};
+        String[] columns = {"ID", "Last Name", "First Name", "Position", "Supervisor", "SSS", "PhilHealth", "TIN", "Pag-IBIG", "Basic Salary", "Hourly Rate"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -80,6 +83,7 @@ public class EmployeePanel extends JPanel {
         
         JButton newButton = new JButton("New Employee");
         newButton.addActionListener(e -> openNewEmployeeFrame());
+        newButton.setVisible(canAddEmployee); // Visibility based on permission
         
         updateButton = new JButton("Update");
         updateButton.setEnabled(false);
@@ -119,6 +123,10 @@ public class EmployeePanel extends JPanel {
 
         loadEmployeeData();
     }
+
+    public EmployeePanel() {
+        this(false); // Default to no add permission
+    }
     
     private JPanel createTimeLogPanel() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -137,6 +145,7 @@ public class EmployeePanel extends JPanel {
 
     private void loadEmployeeTimeLogs(String empId) {
         timeLogModel.setRowCount(0);
+        // Get logs for the specific employee ID
         List<TimeLog> logs = timeLogService.getTimeLogsForEmployee(empId);
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("hh:mm a");
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy");
@@ -171,25 +180,30 @@ public class EmployeePanel extends JPanel {
         gbc.anchor = GridBagConstraints.WEST;
 
         // Initialize Fields
-        txtEmployeeId = new JTextField(15); txtEmployeeId.setEditable(false); // ID should not be editable usually
-        txtFirstName = new JTextField(15);
-        txtLastName = new JTextField(15);
-        txtBirthday = new JTextField(10);
-        txtAddress = new JTextField(20);
-        txtPhoneNumber = new JTextField(12);
-        txtSss = new JTextField(12);
-        txtPhilHealth = new JTextField(12);
-        txtTin = new JTextField(12);
-        txtPagIbig = new JTextField(12);
-        txtStatus = new JTextField(10);
-        txtPosition = new JTextField(15);
-        txtSupervisor = new JTextField(15);
-        txtBasicSalary = new JTextField(10);
-        txtRiceSubsidy = new JTextField(10);
-        txtPhoneAllowance = new JTextField(10);
-        txtClothingAllowance = new JTextField(10);
-        txtGrossRate = new JTextField(10);
-        txtHourlyRate = new JTextField(10);
+        txtEmployeeId = new JTextField(15); txtEmployeeId.setEditable(false);
+        txtFirstName = new JTextField(15); txtFirstName.setEditable(false);
+        txtLastName = new JTextField(15); txtLastName.setEditable(false);
+        txtBirthday = new JTextField(10); txtBirthday.setEditable(false);
+        txtAddress = new JTextField(20); txtAddress.setEditable(false);
+        txtPhoneNumber = new JTextField(12); txtPhoneNumber.setEditable(false);
+        txtSss = new JTextField(12); txtSss.setEditable(false);
+        txtPhilHealth = new JTextField(12); txtPhilHealth.setEditable(false);
+        txtTin = new JTextField(12); txtTin.setEditable(false);
+        txtPagIbig = new JTextField(12); txtPagIbig.setEditable(false);
+        txtStatus = new JTextField(10); txtStatus.setEditable(false);
+        txtPosition = new JTextField(15); txtPosition.setEditable(false);
+        txtSupervisor = new JTextField(15); txtSupervisor.setEditable(false);
+        txtBasicSalary = new JTextField(10); txtBasicSalary.setEditable(false);
+        txtRiceSubsidy = new JTextField(10); txtRiceSubsidy.setEditable(false);
+        txtPhoneAllowance = new JTextField(10); txtPhoneAllowance.setEditable(false);
+        txtClothingAllowance = new JTextField(10); txtClothingAllowance.setEditable(false);
+        txtGrossRate = new JTextField(10); txtGrossRate.setEditable(false);
+        txtHourlyRate = new JTextField(10); txtHourlyRate.setEditable(false);
+
+        // Apply read-only mode if the user is NOT an admin
+        boolean isAdmin = canAddEmployee; // Reusing the flag which indicates admin status
+        // setFieldsEditable(isAdmin); // Removed: Fields are now always read-only in this view
+
 
         // Add Fields to Grid
         // Row 0
@@ -271,21 +285,46 @@ public class EmployeePanel extends JPanel {
                     emp.getLastName(),
                     emp.getFirstName(),
                     emp.getPosition(),
-                    emp.getImmediateSupervisor()
+                    emp.getImmediateSupervisor(),
+                    emp.getSssNumber(),
+                    emp.getPhilHealthNumber(),
+                    emp.getTinNumber(),
+                    emp.getPagIbigNumber(),
+                    emp.getBasicSalary(),
+                    emp.getHourlyRate()
             });
         }
+    }
+
+    private void setFieldsEditable(boolean editable) {
+        txtFirstName.setEditable(editable);
+        txtLastName.setEditable(editable);
+        txtBirthday.setEditable(editable);
+        txtAddress.setEditable(editable);
+        txtPhoneNumber.setEditable(editable);
+        txtSss.setEditable(editable);
+        txtPhilHealth.setEditable(editable);
+        txtTin.setEditable(editable);
+        txtPagIbig.setEditable(editable);
+        txtStatus.setEditable(editable);
+        txtPosition.setEditable(editable);
+        txtSupervisor.setEditable(editable);
+        txtBasicSalary.setEditable(editable);
+        txtRiceSubsidy.setEditable(editable);
+        txtPhoneAllowance.setEditable(editable);
+        txtClothingAllowance.setEditable(editable);
+        txtGrossRate.setEditable(editable);
+        txtHourlyRate.setEditable(editable);
     }
 
     private void loadSelectedEmployeeToForm() {
         int selectedRow = employeeTable.getSelectedRow();
         if (selectedRow != -1) {
             String empId = (String) tableModel.getValueAt(selectedRow, 0);
-            System.out.println("DEBUG: Selected row " + selectedRow + ", ID: " + empId);
             
             Optional<Employee> empOpt = employeeService.getEmployeeById(empId);
             
             if (empOpt.isPresent()) {
-                System.out.println("DEBUG: Employee found: " + empId);
                 Employee e = empOpt.get();
                 txtEmployeeId.setText(e.getEmployeeId());
                 txtFirstName.setText(e.getFirstName());
@@ -307,15 +346,13 @@ public class EmployeePanel extends JPanel {
                 txtGrossRate.setText(String.valueOf(e.getGrossSemiMonthlyRate()));
                 txtHourlyRate.setText(String.valueOf(e.getHourlyRate()));
 
-                updateButton.setEnabled(true);
-                deleteButton.setEnabled(true);
+                // Enable update/delete buttons ONLY if user is Admin
+                updateButton.setEnabled(canAddEmployee); 
+                deleteButton.setEnabled(canAddEmployee);
                 
                 // Load Time Logs for selected employee
-                System.out.println("DEBUG: Loading logs for " + empId);
                 loadEmployeeTimeLogs(e.getEmployeeId());
-            } else {
-                System.err.println("DEBUG: Employee NOT found: " + empId);
-            }
+            } 
         }
     }
 
@@ -353,55 +390,13 @@ public class EmployeePanel extends JPanel {
         String empId = txtEmployeeId.getText();
         if (empId.isEmpty()) return;
 
-        try {
-            // Basic Validation
-            if (txtFirstName.getText().trim().isEmpty() || txtLastName.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Name fields cannot be empty.");
-                return;
-            }
-
-            // Parse numbers
-            double basicSalary = parseDouble(txtBasicSalary.getText());
-            double rice = parseDouble(txtRiceSubsidy.getText());
-            double phone = parseDouble(txtPhoneAllowance.getText());
-            double clothing = parseDouble(txtClothingAllowance.getText());
-            double gross = parseDouble(txtGrossRate.getText());
-            double hourly = parseDouble(txtHourlyRate.getText());
-
-            // Create updated Employee object
-            Employee updatedEmp = new Employee(
-                empId,
-                txtFirstName.getText().trim(),
-                txtLastName.getText().trim(),
-                txtBirthday.getText().trim(),
-                txtAddress.getText().trim(),
-                txtPhoneNumber.getText().trim(),
-                txtSss.getText().trim(),
-                txtPhilHealth.getText().trim(),
-                txtTin.getText().trim(),
-                txtPagIbig.getText().trim(),
-                txtStatus.getText().trim(),
-                txtPosition.getText().trim(),
-                txtSupervisor.getText().trim(),
-                basicSalary,
-                rice,
-                phone,
-                clothing,
-                gross,
-                hourly
-            );
-
-            employeeService.updateEmployee(updatedEmp);
-            JOptionPane.showMessageDialog(this, "Employee updated successfully!");
-            
-            // Refresh table and keep selection if possible, or clear
-            loadEmployeeData();
-            clearForm();
-
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Invalid number format in salary fields.");
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error updating employee: " + e.getMessage());
+        Optional<Employee> empOpt = employeeService.getEmployeeById(empId);
+        if (empOpt.isPresent()) {
+            UpdateEmployeeFrame updateFrame = new UpdateEmployeeFrame(empOpt.get(), () -> {
+                loadEmployeeData();
+                loadSelectedEmployeeToForm(); // Refresh the form with new data
+            });
+            updateFrame.setVisible(true);
         }
     }
 

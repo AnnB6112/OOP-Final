@@ -87,14 +87,20 @@ public class LeavePanel extends JPanel {
 
         // Toolbar
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        
+        // Strict Role Check: Only Admin can approve/reject
+        boolean isAdmin = currentUser.getRole().equalsIgnoreCase("Admin");
+        
         JButton approveButton = new JButton("Approve");
         approveButton.setBackground(new Color(46, 204, 113));
         approveButton.setForeground(Color.WHITE);
+        approveButton.setEnabled(isAdmin); // Enabled only for Admin
         approveButton.addActionListener(e -> processLeave(true));
         
         JButton rejectButton = new JButton("Reject");
         rejectButton.setBackground(new Color(231, 76, 60));
         rejectButton.setForeground(Color.WHITE);
+        rejectButton.setEnabled(isAdmin); // Enabled only for Admin
         rejectButton.addActionListener(e -> processLeave(false));
         
         JButton refreshButton = new JButton("Refresh");
@@ -103,6 +109,12 @@ public class LeavePanel extends JPanel {
         toolbar.add(approveButton);
         toolbar.add(rejectButton);
         toolbar.add(refreshButton);
+        
+        if (!isAdmin) {
+            JLabel notice = new JLabel(" (View Only mode for non-Admins)");
+            notice.setForeground(Color.GRAY);
+            toolbar.add(notice);
+        }
         
         panel.add(toolbar, BorderLayout.NORTH);
 

@@ -26,7 +26,9 @@ public class MainFrame extends JFrame {
         // Initialize Panels
         panelMap = new HashMap<>();
         panelMap.put("Dashboard", new DashboardPanel());
-        panelMap.put("Employees", new EmployeePanel());
+        // Pass 'true' if user is Admin to allow adding employees
+        boolean isAdmin = currentUser.getRole().equalsIgnoreCase("Admin");
+        panelMap.put("Employees", new EmployeePanel(isAdmin));
         panelMap.put("Payroll", new PayrollPanel());
         panelMap.put("Time Logs", new TimeLogPanel(currentUser));
         panelMap.put("Leave Requests", new LeavePanel(currentUser));

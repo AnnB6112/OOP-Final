@@ -208,6 +208,7 @@ public class TimeLogPanel extends JPanel {
                     paidTime = String.format("%.2f hrs", hours);
                 }
 
+                // Add full details to table
                 tableModel.addRow(new Object[]{
                     log.getEmployeeId(),
                     log.getLastName() + ", " + log.getFirstName(), // Combined Name

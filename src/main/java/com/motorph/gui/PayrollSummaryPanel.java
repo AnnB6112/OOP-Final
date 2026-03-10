@@ -84,7 +84,11 @@ public class PayrollSummaryPanel extends JPanel {
         }
 
         // Currency Renderer
-        NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.US);
+        // Use Locale for Philippines to get "PHP" or "₱" symbol
+        // If "en-PH" is available, it typically uses "PHP" or "₱"
+        // Alternatively, we can force a DecimalFormat with "PHP " prefix
+        NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "PH")); 
+        
         DefaultTableCellRenderer currencyRenderer = new DefaultTableCellRenderer() {
             @Override
             public void setValue(Object value) {
